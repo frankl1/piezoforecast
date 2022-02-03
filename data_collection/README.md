@@ -9,7 +9,7 @@ This directory
 1. Execute `load_stations.py' to get a list of piezometers from Hubeau and a file that describes the stations. Yields:
 	- `list_bss.csv`
 	- `stations.csv`
-2. Execute `load_cdcdata.py` to load the climate database. Yields, per year:
+2. Execute `load_cdsdata.py` to load the climate database. Yields, per year:
 	- `rain_XXXX.nc`
 	- `total_evaporation_XXXX.nc`
 	-> this step requires to get a (free) access to the CDC database and to install the CDS API
