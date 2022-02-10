@@ -119,19 +119,19 @@ def forecast(model, name, test_df, input_width, label_width, train_mean, train_s
 
         forecast_index = pd.date_range(start=test_df_tmp.index[-1], end=test_df_tmp.index[-1] + pd.Timedelta(label_width, unit='D'))[1:]
 
-        df_pred = pd.DataFrame(data=forecast, index=pd.Index(forecast_index, name='DATE'), columns=['niveau_nappe_eau'])
+        df_pred = pd.DataFrame(data=forecast, index=pd.Index(forecast_index, name='DATE'), columns=['p'])
 
         # Adding date features
         df_pred = add_date_features(df_pred)
 
         # adding derivate features
-        df_pred = add_derivate_features(df_pred, 'niveau_nappe_eau')
+        df_pred = add_derivate_features(df_pred, 'p')
         
         # normalize
         df_pred = (df_pred - train_mean) / train_std
         
         # cancel normalization on the the forecasted values
-        df_pred['niveau_nappe_eau'] = forecast
+        df_pred['p'] = forecast
         
         # Add the new data to end of the frame and remove the same amount of rows at the beginning.
         # This is just for not using to much memory

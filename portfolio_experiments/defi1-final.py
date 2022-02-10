@@ -20,9 +20,9 @@ global_start_time = time.time()
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('-e', '--max_epoch', type=int, help='Maximum number of epochs', default=15)
+parser.add_argument('-e', '--max_epoch', type=int, help='Maximum number of epochs', default=50)
 parser.add_argument('-b', '--batch_size', type=int, help='Batch size', default=64)
-parser.add_argument('-p', '--patience', type=int, help='The patience value for early stopping callback', default=15)
+parser.add_argument('-p', '--patience', type=int, help='The patience value for early stopping callback', default=5)
 parser.add_argument('-v', '--verbose', type=int, help='The verbosing level for keras', default=2)
 
 args = parser.parse_args()
@@ -49,7 +49,10 @@ patience = args.patience
 verbose = args.verbose
 
 
-sources = pd.read_csv('Data/points_eau.csv', delimiter=';')
+sources = pd.read_csv('../data_collection/dataset_stations.csv', delimiter=',', index_col=0)
+
+all_data = pd.read_csv('../data_collection/dataset_2015_2021.csv', delimiter=',', index_col=0, parse_dates=['time'])
+
 # sources = sources.head(7)
 
 with open('performances.csv', 'a+', buffering=1) as perf_file:
@@ -58,63 +61,73 @@ with open('performances.csv', 'a+', buffering=1) as perf_file:
         perf_file.write(',val_loss,test_loss,best_model_at_test,runtime_in_sec\n')
     else:
         perf = pd.read_csv('performances.csv', index_col=0)
-        sources = sources[~sources.CODE_BSS.isin(perf.index)]
+        sources = sources[~sources.bss.isin(perf.index)]
 
-    for code_bss, bss_id in zip(sources.CODE_BSS, sources.BSS_ID):
+    for code_bss in sources.bss:
 
-        print('\n\nRunning on bss_id:', bss_id)
+        print('\n\nRunning on bss_id:', code_bss)
 
         start_time = time.time()
 
-        # # Download data
-        data = download_data(code_bss, f"Data/{bss_id}.csv")
+        # # Retrieve data
+        if code_bss not in all_data.index:
+            continue
+            
+        data = all_data.loc[code_bss].set_index('time')
+        data = data.sort_index()
+        
+        # select depth col
+        data = data[['p']]
+        
+        # dropna
+        data = data.dropna()
 
         # # Preprocessing
 
         # ## Resampling the data to have a measure per day
 
-        # start_date = '04-05-1970'
-        # start_date = '09-08-1984'
-        # start_date = '01-01-2000'
         start_date = data.index.min()
 
         data = data.loc[start_date:, :]
 
-        new_index = pd.date_range(start_date, data.index[-1])
+        new_index = pd.date_range(start_date, data.index.max())
 
         missing_index = new_index.difference(data.index)
 
-        print("\n\nThere are", missing_index.size, "missing measures over ", new_index.size, " => ", round(100 * missing_index.size/new_index.size, 2), "% of data")
+        print("There are", missing_index.size, "missing dates over ", new_index.size, " => ", round(100 * missing_index.size/new_index.size, 2), "% of data")
 
         # Adding date features
         data = add_date_features(data)
 
-        # Filling missing observations with Gaussian Processes
+        if missing_index.size > 0:
+            # Filling missing observations with Gaussian Processes
 
-        imputer = build_imputer_model()
+            imputer = build_imputer_model()
 
-        imputer.fit(data[['year', 'month', 'quarter', 'weekday', 'day']], data['niveau_nappe_eau'])
+            imputer.fit(data[['year', 'month', 'quarter', 'weekday', 'day']], data['p'])
 
-        print('\n\nimputer.Score:', imputer.score(data[['year', 'month', 'quarter', 'weekday', 'day']], data['niveau_nappe_eau']), '\n\n')
+            print('\n\nimputer.Score:', imputer.score(data[['year', 'month', 'quarter', 'weekday', 'day']], data['p']), '\n\n')
 
 
-        # Predict missing values
-        missing_X = np.concatenate([missing_index.year.values.reshape((-1, 1)), 
-                             missing_index.month.values.reshape((-1, 1)), 
-                             missing_index.quarter.values.reshape((-1, 1)), 
-                             missing_index.weekday.values.reshape((-1, 1)), 
-                             missing_index.day.values.reshape((-1, 1))], axis=1)
-        missing_X
-        missing_y = imputer.predict(missing_X)
+            # Predict missing values
+            missing_X = np.concatenate([missing_index.year.values.reshape((-1, 1)), 
+                                 missing_index.month.values.reshape((-1, 1)), 
+                                 missing_index.quarter.values.reshape((-1, 1)), 
+                                 missing_index.weekday.values.reshape((-1, 1)), 
+                                 missing_index.day.values.reshape((-1, 1))], axis=1)
+            missing_X
+            missing_y = imputer.predict(missing_X)
+            
+            cols = ['year', 'month', 'quarter', 'weekday', 'day', 'p']
 
-        cols = ['year', 'month', 'quarter', 'weekday', 'day', 'niveau_nappe_eau']
-        missing_X_y = pd.DataFrame(data=np.concatenate([missing_X, np.expand_dims(missing_y, axis=1)], axis=1), 
-                                   columns=cols, 
-                                   index=missing_index)
+            missing_X_y = pd.DataFrame(data=np.concatenate([missing_X, np.expand_dims(missing_y, axis=1)], axis=1), 
+                                       columns=cols, 
+                                       index=missing_index)
 
-        data_no_missing = data[cols].append(missing_X_y)
-        data_no_missing = data_no_missing.sort_index()
-        data_no_missing
+            data_no_missing = data[cols].append(missing_X_y)
+            data_no_missing = data_no_missing.sort_index()
+        else:
+            data_no_missing = data
 
         # ### Feature engineering
         # 
@@ -122,7 +135,7 @@ with open('performances.csv', 'a+', buffering=1) as perf_file:
         # - Add precipitation
 
         # First and second degree diff
-        data_no_missing = add_derivate_features(data_no_missing, 'niveau_nappe_eau')
+        data_no_missing = add_derivate_features(data_no_missing, 'p')
 
         # ### Split dataset 
         # 
@@ -130,7 +143,7 @@ with open('performances.csv', 'a+', buffering=1) as perf_file:
 
         # In[14]:
 
-        features = ['niveau_nappe_eau', 'year', 'month', 'quarter', 'weekday', 'day', 'diff_niveau_nappe_eau', 'diff30_niveau_nappe_eau', 'diff90_niveau_nappe_eau', 'diff180_niveau_nappe_eau', 'diff_diff_niveau_nappe_eau']
+        features = ['p', 'year', 'month', 'quarter', 'weekday', 'day', 'diff_p', 'diff30_p', 'diff90_p', 'diff180_p', 'diff_diff_p']
 
         df = data_no_missing[features]
 
@@ -173,13 +186,13 @@ with open('performances.csv', 'a+', buffering=1) as perf_file:
                                  label_width=label_width, 
                                  shift=shift,
                                  batch_size=batch_size,
-                                 train_df=train_df, val_df=val_df, test_df=test_df, label_columns=['niveau_nappe_eau'])
+                                 train_df=train_df, val_df=val_df, test_df=test_df, label_columns=['p'])
 
         no_suffled_window = WindowGenerator(input_width=input_width, 
                                  label_width=label_width, 
                                  shift=shift,
                                  batch_size=batch_size,
-                                 train_df=train_df, val_df=val_df, test_df=test_df, label_columns=['niveau_nappe_eau'], shuffle=False)
+                                 train_df=train_df, val_df=val_df, test_df=test_df, label_columns=['p'], shuffle=False)
 
         # ## Model 
 
@@ -235,7 +248,7 @@ with open('performances.csv', 'a+', buffering=1) as perf_file:
                 best_model = name
                 best_test_score = test_perf
                 best_val_score = val_perf
-                label_index = window_tmp.column_indices['niveau_nappe_eau'] if 'AR' in name else None
+                label_index = window_tmp.column_indices['p'] if 'AR' in name else None
 
             models[name] = forecaster
 
@@ -244,7 +257,7 @@ with open('performances.csv', 'a+', buffering=1) as perf_file:
         predictions = pd.DataFrame({
             'CODE_BSS': code_bss,
             'DATE': predictions.index,
-            'NIVEAU_PIEZO': predictions.niveau_nappe_eau * train_std.niveau_nappe_eau + train_mean.niveau_nappe_eau
+            'PROFONDEUR': predictions.p * train_std.p + train_mean.p
         })
 
         if os.path.exists('submission.csv'):
