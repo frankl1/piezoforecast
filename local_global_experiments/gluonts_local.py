@@ -40,7 +40,7 @@ for bss_id in data.bss.drop_duplicates():
             [{
                     'target': dataset.p[:-prediction_length].to_numpy(), 
                     'start': '2015-01-01',
-                    'feat_dynamic_real':dataset[['tp','e']][:-prediction_length]
+                    'feat_dynamic_real':dataset[covariates][:-prediction_length]
               }],
             freq=freq
         )
@@ -49,7 +49,7 @@ for bss_id in data.bss.drop_duplicates():
             [{
                     'target': dataset.p.to_numpy(), 
                     'start': '2015-01-01',
-                    'feat_dynamic_real':dataset[['tp','e']]
+                    'feat_dynamic_real':dataset[covariates]
               }],
             freq=freq
         )
