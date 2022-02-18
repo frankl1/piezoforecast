@@ -47,9 +47,9 @@ def fit_and_predict(model, data, horizon):
     start_time = time.time()
 
     if isinstance(model, Prophet):
-        model.fit(data[:horizon])
+        model.fit(data[:-horizon])
     else:
-        model.fit(data[:horizon], freq='D')
+        model.fit(data[:-horizon], freq='D')
 
     learning_time = time.time() - start_time
 
