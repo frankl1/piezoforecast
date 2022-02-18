@@ -32,7 +32,7 @@ znormalize = args.znormalize
 predictor = args.predictor
 horizon = args.horizon
 
-columns = ['bss_code','model','rmse_train','rmse_test','rmsse_train','rmsse_test','learningtime'] + [f'h{i}' for i in range(1, 94)]
+columns = ['bss_code','model','rmse_train','rmse_test','rmsse_train','rmsse_test','learningtime', 'use_exo_rain', 'use_exo_evo'] + [f'h{i}' for i in range(1, 94)]
 
 def fit_and_predict(model, data, horizon):
     """This function trains the input model on the input on data
@@ -58,7 +58,7 @@ def fit_and_predict(model, data, horizon):
     if isinstance(model, Prophet):
         predictions = predictions.yhat
     else :
-        predictions = predictions.yhat1
+        predictions = predictions.yhat1.astype(float)
 
     mse_train = tf.keras.metrics.mean_squared_error(predictions[:-horizon], data[:-horizon].y).numpy()
     mse_test = tf.keras.metrics.mean_squared_error(predictions[-horizon:], data[-horizon:].y).numpy()
@@ -93,7 +93,11 @@ with open(out_file, 'a+', buffering=1) as f:
         print('\n\n**************-> Executing on piezo No:', count, 'bss:', bss, '\n\n')
 
         data = all_data.loc[bss].sort_index()
-        data = data[['time', 'p']].rename(columns={'time': 'ds', 'p': 'y'})
+
+        data.e = data.e.interpolate(method='linear')
+        data.tp = data.tp.interpolate(method='linear')
+
+        data = data.rename(columns={'time': 'ds', 'p': 'y'})
 
         y_mean, y_std = None, None
         if znormalize:
@@ -102,15 +106,27 @@ with open(out_file, 'a+', buffering=1) as f:
 
             data.y = (data.y - y_mean) / y_std
         
-        model = Prophet() if predictor == PROPHET_PREDICTOR else NeuralProphet()
+        model = None 
+        lines = ""
+        for cov_list in [[], ['tp'], ['e'], ['tp', 'e']]:
+            if predictor == PROPHET_PREDICTOR:
+                model = Prophet()
+                for cov in cov_list:
+                    model.add_regressor(cov)
+            else:
+                model =  NeuralProphet() if len(cov_list) == 0 else NeuralProphet(n_lags=5, n_forecasts=1)
+                for cov in cov_list:
+                    model.add_lagged_regressor(cov)
 
-        rmse_train, rmse_test, rmsse_train, rmsse_test, learning_time, predictions = fit_and_predict(model, data, horizon)
+            rmse_train, rmse_test, rmsse_train, rmsse_test, learning_time, predictions = fit_and_predict(model, data[['ds', 'y']+cov_list], horizon)
 
-        if znormalize:
-            predictions = predictions * y_std + y_mean
-            rmse_train = rmse_train * y_std + y_mean
-            rmse_test = rmse_test * y_std + y_mean
-            rmsse_train = rmsse_train * y_std + y_mean
-            rmsse_test = rmsse_test * y_std + y_mean
+            if znormalize:
+                predictions = predictions * y_std + y_mean
+                rmse_train = rmse_train * y_std + y_mean
+                rmse_test = rmse_test * y_std + y_mean
+                rmsse_train = rmsse_train * y_std + y_mean
+                rmsse_test = rmsse_test * y_std + y_mean
 
-        f.write(','.join(np.array([bss, predictor, rmse_train, rmse_test, rmsse_train, rmsse_test, learning_time] + predictions.tolist(), dtype=str))+'\n')
+            lines += ','.join(np.array([bss, predictor, rmse_train, rmse_test, rmsse_train, rmsse_test, learning_time, 'tp' in cov_list, 'e' in cov_list] + predictions.tolist(), dtype=str))+'\n'
+        
+        f.write(lines)
