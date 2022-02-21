@@ -1,0 +1,86 @@
+---
+title: "Analyse résultats"
+author: "Thomas Guyet and Michael Mbouopda"
+date: "21/02/2022"
+output: pdf_document
+---
+
+```{r clean up, include=FALSE}
+rm(list=ls())
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+library(scmamp)
+```
+
+
+# Data loading
+
+In this section, we load the data.
+
+```{r data load, message=FALSE,  fig.path="figures/"}
+rep_results="./"
+
+# old results from Thomas
+files= c( paste0(rep_results,'oldTG_local_part1.csv'), 
+          paste0(rep_results,'oldTG_local_part2.csv'),
+          paste0(rep_results,'oldTG_local_part3.csv'),
+          paste0(rep_results,'oldTG_local_part4.csv'),
+          paste0(rep_results,'oldTG_local_cmpl.csv'),
+          paste0(rep_results,'oldTG_local_xgb.csv') )
+data <- files %>% map_df( ~ read_tsv(.) )
+data['rmse'] <- sqrt(data['mse'])
+data <- data %>% filter( approx_exo==FALSE ) %>% select(-c('r','mse','type','use_exo_bdlisa', 'approx_exo'))%>%rename(model = id_method_ML)
+
+# Add Deep AR results
+data_deepar = read_csv("local_DeepAR.csv", col_select=c('item_id','model','rmse','rmsse','use_exo_evo', 'use_exo_rain'))%>%rename( id_piezo=item_id, use_exo_eto=use_exo_evo )
+data <- bind_rows(data,data_deepar)
+
+
+# Add Prophet results
+data_prophet = read_csv("local_prophet.csv", col_select=c('bss_code','model','rmse_test','rmsse_test','use_exo_evo', 'use_exo_rain'))%>%rename( rmse=rmse_test, rmsse=rmsse_test, id_piezo=bss_code, use_exo_eto=use_exo_evo )
+data <- bind_rows(data,data_prophet)
+
+rm(data_prophet,data_deepar)
+data
+```
+
+## Comparaison des méthodes de regression (sans données exogènes)
+
+On cherche ici à identifier quelle méthode de régression est la meilleure (en terme de RMSE). 
+L'analyse est conduite pour deux valeurs de $r$~: 50 et 100.
+
+```{r "cmp sans données exogènes", echo=FALSE, message=FALSE, fig.path="figures/"}
+ggdata  = data %>% filter( use_exo_rain==FALSE &  
+                             use_exo_eto==FALSE) %>% 
+  select( id_piezo, model, rmsse, rmse)
+
+ggplot( ggdata) +
+  geom_boxplot( aes(x=model, y=rmsse) ) +
+  theme_bw()+
+  ylim(c(0,50)) +
+  labs(x = "Regresseur", y = "RMSSE") +
+  theme(legend.position = c(0.1, 0.85), axis.title.x = element_blank())
+#ggsave("expe_cmp_ml.pdf", width = 7, height = 4)
+
+```
+
+```{r}
+
+# Critical differences diagram
+df = ggdata %>% select(id_piezo, model, rmsse)%>%group_by(id_piezo, model)%>%
+  summarise( rmsse=mean(rmsse))%>%spread(model, rmsse)%>%ungroup()%>%drop_na()
+
+cmpmat<-df%>%select(-id_piezo)
+
+#pdf(file = "cd_cmp_ml.pdf", width = 7, height = 4)
+#plotCD(-cmpmat, cex = 1)
+#dev.off()
+plotCD(-cmpmat, cex = 1)
+```
+
+
