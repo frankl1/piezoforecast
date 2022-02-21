@@ -1,0 +1,12 @@
+name: defiegc2021
+channels:
+  - defaults
+dependencies:
+  - ipykernel
+  - pandas
+  - requests
+  - matplotlib
+  - seaborn
+  - scikit-learn
+  - numpy
+prefix: /Users/michael/opt/miniconda3/envs/defiegc2021
