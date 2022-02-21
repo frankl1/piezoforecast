@@ -22,7 +22,7 @@ library(scmamp)
 
 In this section, we load the data.
 
-```{r data load, message=FALSE,  fig.path="figures/"}
+```{r data load, message=FALSE, echo=FALSE, include=FALSE,  fig.path="figures/"}
 rep_results="./"
 
 # old results from Thomas
@@ -51,10 +51,10 @@ data
 
 ## Comparaison des méthodes de regression (sans données exogènes)
 
-On cherche ici à identifier quelle méthode de régression est la meilleure (en terme de RMSE). 
-L'analyse est conduite pour deux valeurs de $r$~: 50 et 100.
+In this section we compare the different forecasting methods while not using exogeneous data ...
+We use RMSSE measurements. 
 
-```{r "cmp sans données exogènes", echo=FALSE, message=FALSE, fig.path="figures/"}
+```{r "cmp sans données exogènes", echo=FALSE, message=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
 ggdata  = data %>% filter( use_exo_rain==FALSE &  
                              use_exo_eto==FALSE) %>% 
   select( id_piezo, model, rmsse, rmse)
@@ -69,7 +69,11 @@ ggplot( ggdata) +
 
 ```
 
-```{r}
+We can notice that the DeepAR approach outperforms the other approaches based on various auto-regressive functions and Prophet.
+
+We now compute the Critical Difference Diagram using the same comparison setting. The Figure below confirms the results: DeepAR significantly outperforms the other approaches. 
+
+```{r, message=FALSE, echo=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
 
 # Critical differences diagram
 df = ggdata %>% select(id_piezo, model, rmsse)%>%group_by(id_piezo, model)%>%
