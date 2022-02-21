@@ -68,6 +68,12 @@ class RootMeanSquaredScaledError(tf.keras.metrics.Metric):
     
     def reset_state(self):
         self.rmsse = 0
+        
+def weightedAveragePercentageError(y_true, y_pred):
+    y_true = tf.cast(y_true, tf.float32)
+    y_pred = tf.cast(y_pred, tf.float32)
+    mae = tf.reduce_mean(tf.abs(y_true - y_pred))
+    return mae / tf.reduce_mean(y_true)
 
 def compile_and_fit(model, window, patience=2, epochs=20, verbose=0):
     #hmsd = np.mean(window.train_df.niveau_nappe_eau.diff()[1:]**2)
@@ -87,11 +93,56 @@ def compile_and_fit(model, window, patience=2, epochs=20, verbose=0):
     
     model.compile(loss=tf.keras.losses.MeanSquaredError(), optimizer=tf.keras.optimizers.Adam())
     
-    history = model.fit(window.train, epochs=epochs, callbacks=[early_stopping, checkpoint], verbose=verbose)
+    history = model.fit(window.train, epochs=epochs, callbacks=[early_stopping, checkpoint])
     
     model.load_weights(checkpoint_file)
     
     return history
+
+def forecast(model, name, test_df, input_width, label_width, train_mean, train_std, stop_at='2022-01-15', label_index = None):
+    
+    test_df_tmp = test_df.copy()
+        
+    while test_df_tmp.index.max() < pd.Timestamp(stop_at):
+                
+        last_history = np.expand_dims(test_df_tmp.tail(input_width).values, axis=0)
+
+        forecast = model.predict(last_history).squeeze()
+
+        if label_index is not None:
+            forecast = forecast[label_index]
+
+    #     forecast = forecast * train_std + train_mean
+
+    #     print("forecast")
+    #     print(forecast)
+
+        forecast_index = pd.date_range(start=test_df_tmp.index[-1], end=test_df_tmp.index[-1] + pd.Timedelta(label_width, unit='D'))[1:]
+
+        df_pred = pd.DataFrame(data=forecast, index=pd.Index(forecast_index, name='DATE'), columns=['p'])
+
+        # Adding date features
+        df_pred = add_date_features(df_pred)
+
+        # adding derivate features
+        df_pred = add_derivate_features(df_pred, 'p')
+        
+        # normalize
+        df_pred = (df_pred - train_mean) / train_std
+        
+        # cancel normalization on the the forecasted values
+        df_pred['p'] = forecast
+        
+        # Add the new data to end of the frame and remove the same amount of rows at the beginning.
+        # This is just for not using to much memory
+        test_df_tmp = test_df_tmp.append(df_pred)
+    
+    #     print("series")
+    #     print(series)
+
+    return_indices = pd.date_range(periods=label_width, end=pd.Timestamp(stop_at))
+    
+    return test_df_tmp.loc[return_indices]
 
 class WindowGenerator():
     def __init__(self, input_width, label_width, shift, train_df, test_df, label_columns=None, val_df=None, batch_size=64, shuffle=True):
