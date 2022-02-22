@@ -7,7 +7,9 @@ import numpy as np
 import tensorflow as tf
 
 from prophet import Prophet
-from neuralprophet import NeuralProphet
+from neuralprophet import NeuralProphet, set_log_level
+
+set_log_level('ERROR')
 
 PROPHET_PREDICTOR = 'prophet'
 NEURAL_PROPHET_PREDICTOR = 'neuralprophet'
@@ -16,6 +18,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('dataset', type=str, help='the dataset file')
 parser.add_argument('out_file', type=str, help="the result file")
+parser.add_argument('-l', '--history', type=int, help='Length of the history', default=100)
 parser.add_argument('-H', '--horizon', type=int, help='Length of the horizon', default=93)
 parser.add_argument('-z', '--znormalize', action='store_true', help="If set, z-normalize the time series")
 parser.add_argument('-p', '--predictor', type=str, choices=(PROPHET_PREDICTOR, NEURAL_PROPHET_PREDICTOR), default=PROPHET_PREDICTOR)
@@ -31,14 +34,16 @@ out_file = args.out_file
 znormalize = args.znormalize
 predictor = args.predictor
 horizon = args.horizon
+history = args.history
 
 columns = ['bss_code','model','rmse_train','rmse_test','rmsse_train','rmsse_test','learningtime', 'use_exo_rain', 'use_exo_evo'] + [f'h{i}' for i in range(1, 94)]
 
-def fit_and_predict(model, data, horizon):
+def fit_and_predict(model, data, horizon, history=0):
     """This function trains the input model on the input on data
     Args:
     data: a dataframe with the columns ds (datetime) and y (time series values)
-    horizon: a integer represanting the horizon length
+    horizon: an integer representing the horizon length
+    history: an interger representing the history length
 
     Return:
     a tuple containing in order: the train rmse, the test rmse, the train rmsse, the test rmsse, the training time, [h_1,h_2,...,h_horizon]
@@ -60,7 +65,7 @@ def fit_and_predict(model, data, horizon):
     else :
         predictions = predictions.yhat1.astype(float)
 
-    mse_train = tf.keras.metrics.mean_squared_error(predictions[:-horizon], data[:-horizon].y).numpy()
+    mse_train = tf.keras.metrics.mean_squared_error(predictions[history:-horizon], data[history:-horizon].y).numpy()
     mse_test = tf.keras.metrics.mean_squared_error(predictions[-horizon:], data[-horizon:].y).numpy()
 
     scaled_factor = np.mean(data.y.diff().dropna()**2)
@@ -108,17 +113,20 @@ with open(out_file, 'a+', buffering=1) as f:
         
         model = None 
         lines = ""
-        for cov_list in [[], ['tp'], ['e'], ['tp', 'e']]:
+        
+        for cov_list in [['tp'], ['e'], ['tp', 'e']]: # [[], ['tp'], ['e'], ['tp', 'e']]
             if predictor == PROPHET_PREDICTOR:
+                h = 0
                 model = Prophet()
                 for cov in cov_list:
                     model.add_regressor(cov)
             else:
-                model =  NeuralProphet() if len(cov_list) == 0 else NeuralProphet(n_lags=5, n_forecasts=1)
+                h = history
+                model =  NeuralProphet() if len(cov_list) == 0 else NeuralProphet(n_lags=history, n_forecasts=1)
                 for cov in cov_list:
-                    model.add_lagged_regressor(cov)
+                    model = model.add_lagged_regressor(cov)
 
-            rmse_train, rmse_test, rmsse_train, rmsse_test, learning_time, predictions = fit_and_predict(model, data[['ds', 'y']+cov_list], horizon)
+            rmse_train, rmse_test, rmsse_train, rmsse_test, learning_time, predictions = fit_and_predict(model, data[['ds', 'y']+cov_list], horizon, h)
 
             if znormalize:
                 predictions = predictions * y_std + y_mean
