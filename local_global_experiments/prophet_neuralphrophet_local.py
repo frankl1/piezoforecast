@@ -36,7 +36,7 @@ predictor = args.predictor
 horizon = args.horizon
 history = args.history
 
-columns = ['bss_code','model','rmse_train','rmse_test','rmsse_train','rmsse_test','learningtime', 'use_exo_rain', 'use_exo_evo'] + [f'h{i}' for i in range(1, 94)]
+columns = ['bss_code','model','rmse_train','rmse_test','rmsse_train','rmsse_test','learningtime', 'use_exo_rain', 'use_exo_evo'] + [f'h{i}' for i in range(1, horizon+1)]
 
 def fit_and_predict(model, data, horizon, history=0):
     """This function trains the input model on the input on data
@@ -125,16 +125,21 @@ with open(out_file, 'a+', buffering=1) as f:
                 model =  NeuralProphet() if len(cov_list) == 0 else NeuralProphet(n_lags=history, n_forecasts=1)
                 for cov in cov_list:
                     model = model.add_lagged_regressor(cov)
+            try:
+                rmse_train, rmse_test, rmsse_train, rmsse_test, learning_time, predictions = fit_and_predict(model, data[['ds', 'y']+cov_list], horizon, h)
+                
+                if znormalize:
+                    predictions = predictions * y_std + y_mean
+                    rmse_train = rmse_train * y_std + y_mean
+                    rmse_test = rmse_test * y_std + y_mean
+                    rmsse_train = rmsse_train * y_std + y_mean
+                    rmsse_test = rmsse_test * y_std + y_mean
 
-            rmse_train, rmse_test, rmsse_train, rmsse_test, learning_time, predictions = fit_and_predict(model, data[['ds', 'y']+cov_list], horizon, h)
-
-            if znormalize:
-                predictions = predictions * y_std + y_mean
-                rmse_train = rmse_train * y_std + y_mean
-                rmse_test = rmse_test * y_std + y_mean
-                rmsse_train = rmsse_train * y_std + y_mean
-                rmsse_test = rmsse_test * y_std + y_mean
-
-            lines += ','.join(np.array([bss, predictor, rmse_train, rmse_test, rmsse_train, rmsse_test, learning_time, 'tp' in cov_list, 'e' in cov_list] + predictions.tolist(), dtype=str))+'\n'
+                lines += ','.join(np.array([bss, predictor, rmse_train, rmse_test, rmsse_train, rmsse_test, learning_time, 'tp' in cov_list, 'e' in cov_list] + predictions.tolist(), dtype=str))+'\n'
         
+            except Exception as e:
+                print("Exception on piezo ", bss, "with covariates:", cov_list, "Error:", e)
+                lines += f"{bss},{predictor},,,,,{learning_time},{'tp' in cov_list},{'e' in cov_list}" + (','*horizon)+'\n'
+
+            
         f.write(lines)
