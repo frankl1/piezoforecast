@@ -26,6 +26,7 @@ rep_results = "./"
 datasetfile = 'dataset_nomissing_linear.csv'
 
 data=pd.read_csv(rep_data+"/"+datasetfile, index_col=0)
+data = data[data.time<"2021-01-16"]
 
 prediction_length=93
 freq='1D'
