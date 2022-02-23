@@ -139,7 +139,5 @@ with open(out_file, 'a+', buffering=1) as f:
         
             except Exception as e:
                 print("Exception on piezo ", bss, "with covariates:", cov_list, "Error:", e)
-                lines += f"{bss},{predictor},,,,,{learning_time},{'tp' in cov_list},{'e' in cov_list}" + (','*horizon)+'\n'
-
-            
+                lines += f"{bss},{predictor},,,,,,{'tp' in cov_list},{'e' in cov_list}" + (','*horizon)+'\n'   
         f.write(lines)

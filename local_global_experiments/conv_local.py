@@ -176,18 +176,21 @@ with open(out_file, 'a+', buffering=1) as f:
                 tf.keras.layers.Reshape((label_width, -1))
             ], name='conv_model')
 
-            start_time = time.time()
-            history = compile_and_fit(conv_model, window, patience=patience, epochs=MAX_EPOCHS, verbose=verbose)
-            learning_time = start_time - time.time()
+            try:
+                start_time = time.time()
+                history = compile_and_fit(conv_model, window, patience=patience, epochs=MAX_EPOCHS, verbose=verbose)
+                learning_time = start_time - time.time()
 
-            mse_train = conv_model.evaluate(window.train, verbose=verbose)
-            mse_test = conv_model.evaluate(window.test, verbose=verbose)
+                mse_train = conv_model.evaluate(window.train, verbose=verbose)
+                mse_test = conv_model.evaluate(window.test, verbose=verbose)
 
-            msse_train = mse_train / scaled_factor
-            msse_test = mse_test / scaled_factor
+                msse_train = mse_train / scaled_factor
+                msse_test = mse_test / scaled_factor
 
-            predictions = conv_model.predict(window.test, verbose=verbose).squeeze() * train_std.p + train_mean.p
+                predictions = conv_model.predict(window.test, verbose=verbose).squeeze() * train_std.p + train_mean.p
 
-            lines += ','.join(np.array([code_bss, model, np.sqrt(mse_train), np.sqrt(mse_test), np.sqrt(msse_train), np.sqrt(msse_test), learning_time, 'tp' in cov_list, 'e' in cov_list] + predictions.tolist(), dtype=str))+'\n'
-        
+                lines += ','.join(np.array([code_bss, model, np.sqrt(mse_train), np.sqrt(mse_test), np.sqrt(msse_train), np.sqrt(msse_test), learning_time, 'tp' in cov_list, 'e' in cov_list] + predictions.tolist(), dtype=str))+'\n'
+            except Exception as e:
+                print("Exception on piezo ", code_bss, "with covariates:", cov_list, "Error:", e)
+                lines += f"{code_bss},{model},,,,,,{'tp' in cov_list},{'e' in cov_list}" + (','*label_width)+'\n'
         f.write(lines)
