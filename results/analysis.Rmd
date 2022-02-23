@@ -20,7 +20,6 @@ library(scmamp)
 
 
 # Comparison of Local models
-
 In this section, we use only the data of local models
 
 ```{r data load, message=FALSE, echo=FALSE, include=FALSE}
@@ -56,9 +55,9 @@ data
 ```
 
 ## Comparison of RMSSE without exogenous variables
-
 In this section we compare the different forecasting methods while not using exogenous data ...
 We use RMSSE measurements. 
+
 
 ```{r "cmp sans données exogènes", echo=FALSE, message=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
 ggdata  = data %>% filter( use_exo_rain==FALSE &  
@@ -83,7 +82,7 @@ ggplot( ggdata) +
 
 We can notice that the DeepAR approach outperforms the other approaches based on various auto-regressive functions and Prophet.
 
-We now compute the Critical Difference Diagram using the same comparison setting. The Figure below confirms the results: DeepAR significantly outperforms the other approaches. 
+We now compute the Critical Difference Diagram using the same comparison setting. The Figure below confirms the results: DeepAR significantly outperforms the other approaches.
 
 ```{r, message=FALSE, echo=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/", fig.width=15}
 
@@ -98,6 +97,10 @@ cmpmat<-df%>%select(-id_piezo)
 #dev.off()
 plotCD(-cmpmat, cex = 1)
 ```
+
+
+
+# Comparaison Local/Global for DeepAR
 ```{r, message=FALSE, echo=FALSE, include=FALSE}
 data_deepar = read_csv("local_DeepAR.csv", col_select=c('item_id','model','rmse','rmsse','use_exo_evo', 'use_exo_rain'))%>%rename( id_piezo=item_id, use_exo_eto=use_exo_evo )
 data_deepar['type']="local"
@@ -108,10 +111,7 @@ data_deepar['type']="global"
 data <- bind_rows(data,data_deepar)
 ```
 
-
-# Comparaison Local/Global for DeepAR
-
-```{r "cmp loval/global", echo=FALSE, message=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
+```{r "cmp local/global", echo=FALSE, message=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
 ggdata  = data %>% filter( use_exo_rain==FALSE &
                              use_exo_eto==FALSE) %>% 
   select( id_piezo, type, rmsse, rmse)
@@ -143,3 +143,4 @@ df = ggdata %>% select(id_piezo, type, rmsse)%>%group_by(id_piezo, type)%>%
 cmpmat<-df%>%select(-id_piezo)
 plotCD(-cmpmat, cex = 1)
 ```
+
