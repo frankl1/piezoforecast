@@ -17,7 +17,6 @@ library(ggplot2)
 library(scmamp)
 ```
 
-
 # Data loading
 
 In this section, we load the data.
@@ -40,6 +39,9 @@ data <- data %>% filter( approx_exo==FALSE ) %>% select(-c('r','mse','type','use
 data_deepar = read_csv("local_DeepAR.csv", col_select=c('item_id','model','rmse','rmsse','use_exo_evo', 'use_exo_rain'))%>%rename( id_piezo=item_id, use_exo_eto=use_exo_evo )
 data <- bind_rows(data,data_deepar)
 
+# Add NeuralProphet results
+data_neuralProphet = read_csv("local_neuralprophet.csv", col_select=c('bss_code','model','rmse_test','rmsse_test','use_exo_evo', 'use_exo_rain'))%>%rename( rmse=rmse_test, rmsse=rmsse_test, id_piezo=bss_code, use_exo_eto=use_exo_evo )
+data <- bind_rows(data,data_neuralProphet)
 
 # Add Prophet results
 data_prophet = read_csv("local_prophet.csv", col_select=c('bss_code','model','rmse_test','rmsse_test','use_exo_evo', 'use_exo_rain'))%>%rename( rmse=rmse_test, rmsse=rmsse_test, id_piezo=bss_code, use_exo_eto=use_exo_evo )
@@ -51,8 +53,7 @@ data
 
 ## Comparaison des méthodes de regression (sans données exogènes)
 
-In this section we compare the different forecasting methods while not using exogeneous data ...
-We use RMSSE measurements. 
+In this section we compare the different forecasting methods while not using exogeneous data ... We use RMSSE measurements.
 
 ```{r "cmp sans données exogènes", echo=FALSE, message=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
 ggdata  = data %>% filter( use_exo_rain==FALSE &  
@@ -71,7 +72,7 @@ ggplot( ggdata) +
 
 We can notice that the DeepAR approach outperforms the other approaches based on various auto-regressive functions and Prophet.
 
-We now compute the Critical Difference Diagram using the same comparison setting. The Figure below confirms the results: DeepAR significantly outperforms the other approaches. 
+We now compute the Critical Difference Diagram using the same comparison setting. The Figure below confirms the results: DeepAR significantly outperforms the other approaches.
 
 ```{r, message=FALSE, echo=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
 
@@ -86,5 +87,3 @@ cmpmat<-df%>%select(-id_piezo)
 #dev.off()
 plotCD(-cmpmat, cex = 1)
 ```
-
-
