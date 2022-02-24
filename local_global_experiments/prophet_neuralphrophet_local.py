@@ -76,6 +76,7 @@ def fit_and_predict(model, data, horizon, history=0):
 
 all_data = pd.read_csv(dataset, delimiter=',', index_col=[0], parse_dates=['time'])
 all_data.set_index('bss', drop=True, inplace=True)
+all_data = all_data[all_data.time<"2021-01-16"]
 
 to_skip = []
 if os.path.isfile(out_file):
