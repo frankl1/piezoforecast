@@ -7,6 +7,7 @@ output: pdf_document
 
 ```{r clean up, include=FALSE}
 rm(list=ls())
+rep_results="./"
 ```
 
 ```{r setup, include=FALSE}
@@ -17,12 +18,11 @@ library(ggplot2)
 library(scmamp)
 ```
 
-# Data loading
 
-In this section, we load the data.
+# Comparison of Local models
+In this section, we use only the data of local models
 
-```{r data load, message=FALSE, echo=FALSE, include=FALSE,  fig.path="figures/"}
-rep_results="./"
+```{r data load, message=FALSE, echo=FALSE, include=FALSE}
 
 # old results from Thomas
 files= c( paste0(rep_results,'oldTG_local_part1.csv'), 
@@ -39,42 +39,52 @@ data <- data %>% filter( approx_exo==FALSE ) %>% select(-c('r','mse','type','use
 data_deepar = read_csv("local_DeepAR.csv", col_select=c('item_id','model','rmse','rmsse','use_exo_evo', 'use_exo_rain'))%>%rename( id_piezo=item_id, use_exo_eto=use_exo_evo )
 data <- bind_rows(data,data_deepar)
 
-# Add NeuralProphet results
-data_neuralProphet = read_csv("local_neuralprophet.csv", col_select=c('bss_code','model','rmse_test','rmsse_test','use_exo_evo', 'use_exo_rain'))%>%rename( rmse=rmse_test, rmsse=rmsse_test, id_piezo=bss_code, use_exo_eto=use_exo_evo )
-data <- bind_rows(data,data_neuralProphet)
+data_deepar = read_csv("global_DeepAR.csv", col_select=c('item_id','model','rmse','rmsse','use_exo_evo', 'use_exo_rain'))%>%rename( id_piezo=item_id, use_exo_eto=use_exo_evo )
+data <- bind_rows(data,data_deepar)
 
 # Add Prophet results
-data_prophet = read_csv("local_prophet.csv", col_select=c('bss_code','model','rmse_test','rmsse_test','use_exo_evo', 'use_exo_rain'))%>%rename( rmse=rmse_test, rmsse=rmsse_test, id_piezo=bss_code, use_exo_eto=use_exo_evo )
-data <- bind_rows(data,data_prophet)
+files= c( paste0(rep_results,'local_prophet.csv'), 
+          paste0(rep_results,'local_neuralprophet.csv'),
+          paste0(rep_results,'local_Conv.csv'))
 
-rm(data_prophet,data_deepar)
+newdata <- files %>% map_df( ~ read_csv(.) ) %>% select(c('bss_code','model','rmse_test','rmsse_test','use_exo_evo', 'use_exo_rain'))%>%rename( rmse=rmse_test, rmsse=rmsse_test, id_piezo=bss_code, use_exo_eto=use_exo_evo )
+data <- bind_rows(data,newdata)
+
+rm(data_prophet,newdata)
 data
 ```
 
-## Comparaison des méthodes de regression (sans données exogènes)
+## Comparison of RMSSE without exogenous variables
+In this section we compare the different forecasting methods while not using exogenous data ...
+We use RMSSE measurements. 
 
-In this section we compare the different forecasting methods while not using exogeneous data ... We use RMSSE measurements.
 
 ```{r "cmp sans données exogènes", echo=FALSE, message=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
 ggdata  = data %>% filter( use_exo_rain==FALSE &  
                              use_exo_eto==FALSE) %>% 
   select( id_piezo, model, rmsse, rmse)
 
+# ggplot( ggdata) +
+#   geom_boxplot( aes(x=model, y=rmse) ) +
+#   theme_bw()+
+#   ylim(0,10) +
+#   labs(x = "Regresseur", y = "RMSE") +
+#   theme(legend.position = c(0.1, 0.85), axis.title.x = element_blank())
+
 ggplot( ggdata) +
   geom_boxplot( aes(x=model, y=rmsse) ) +
   theme_bw()+
-  ylim(c(0,50)) +
+  ylim(0,50) +
   labs(x = "Regresseur", y = "RMSSE") +
   theme(legend.position = c(0.1, 0.85), axis.title.x = element_blank())
 #ggsave("expe_cmp_ml.pdf", width = 7, height = 4)
-
 ```
 
 We can notice that the DeepAR approach outperforms the other approaches based on various auto-regressive functions and Prophet.
 
 We now compute the Critical Difference Diagram using the same comparison setting. The Figure below confirms the results: DeepAR significantly outperforms the other approaches.
 
-```{r, message=FALSE, echo=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
+```{r, message=FALSE, echo=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/", fig.width=15}
 
 # Critical differences diagram
 df = ggdata %>% select(id_piezo, model, rmsse)%>%group_by(id_piezo, model)%>%
@@ -87,3 +97,50 @@ cmpmat<-df%>%select(-id_piezo)
 #dev.off()
 plotCD(-cmpmat, cex = 1)
 ```
+
+
+
+# Comparaison Local/Global for DeepAR
+```{r, message=FALSE, echo=FALSE, include=FALSE}
+data_deepar = read_csv("local_DeepAR.csv", col_select=c('item_id','model','rmse','rmsse','use_exo_evo', 'use_exo_rain'))%>%rename( id_piezo=item_id, use_exo_eto=use_exo_evo )
+data_deepar['type']="local"
+data <- data_deepar
+
+data_deepar = read_csv("global_DeepAR.csv", col_select=c('item_id','model','rmse','rmsse','use_exo_evo', 'use_exo_rain'))%>%rename( id_piezo=item_id, use_exo_eto=use_exo_evo )
+data_deepar['type']="global"
+data <- bind_rows(data,data_deepar)
+```
+
+```{r "cmp local/global", echo=FALSE, message=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
+ggdata  = data %>% filter( use_exo_rain==FALSE &
+                             use_exo_eto==FALSE) %>% 
+  select( id_piezo, type, rmsse, rmse)
+
+ggplot( ggdata) +
+  geom_violin( aes(x=type, y=rmsse) ) +
+  theme_bw()+
+  ylim(c(0,50)) +
+  labs(x = "Regresseur", y = "RMSSE") +
+  ylim(0,5) +
+  theme(legend.position = c(0.1, 0.85), axis.title.x = element_blank())
+
+
+ggplot( ggdata) +
+  geom_boxplot( aes(x=type, y=rmsse) ) +
+  theme_bw()+
+  ylim(c(0,50)) +
+  labs(x = "Regresseur", y = "RMSSE") +
+  ylim(0,10) +
+  theme(legend.position = c(0.1, 0.85), axis.title.x = element_blank())
+```
+
+```{r, message=FALSE, echo=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
+
+# Critical differences diagram
+df = ggdata %>% select(id_piezo, type, rmsse)%>%group_by(id_piezo, type)%>%
+  summarise( rmsse=mean(rmsse))%>%spread(type, rmsse)%>%ungroup()%>%drop_na()
+
+cmpmat<-df%>%select(-id_piezo)
+plotCD(-cmpmat, cex = 1)
+```
+
