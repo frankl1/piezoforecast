@@ -179,7 +179,7 @@ with open(out_file, 'a+', buffering=1) as f:
             try:
                 start_time = time.time()
                 history = compile_and_fit(conv_model, window, patience=patience, epochs=MAX_EPOCHS, verbose=verbose)
-                learning_time = start_time - time.time()
+                learning_time = time.time() - start_time
 
                 mse_train = conv_model.evaluate(window.train, verbose=verbose)
                 mse_test = conv_model.evaluate(window.test, verbose=verbose)
