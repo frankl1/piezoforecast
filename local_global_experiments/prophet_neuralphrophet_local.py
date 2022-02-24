@@ -114,7 +114,7 @@ with open(out_file, 'a+', buffering=1) as f:
         model = None 
         lines = ""
         
-        for cov_list in [['tp'], ['e'], ['tp', 'e']]: # [[], ['tp'], ['e'], ['tp', 'e']]
+        for cov_list in [[], ['tp'], ['e'], ['tp', 'e']]:
             if predictor == PROPHET_PREDICTOR:
                 h = 0
                 model = Prophet()
