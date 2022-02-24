@@ -24,7 +24,7 @@ from gluonts.evaluation import make_evaluation_predictions
 from gluonts.evaluation import Evaluator
 
 print("load data")
-rep_data = "../data_collection"
+rep_data = "data_collection"
 rep_results = "./"
 datasetfile = 'dataset_nomissing_linear.csv'
 
@@ -54,14 +54,14 @@ for fold, (train_indices, test_indices) in enumerate(kf.split(indices)):
         train_ds = ListDataset(
             [{'target': data[data.bss==bss_id].p[:-prediction_length].to_numpy(), 
             'start': '2015-01-01', 
-            'feat_dynamic_real':data[data.bss==bss_id][covariates][:-prediction_length]} for bss_id in data.bss.drop_duplicates()[train_indices]],
+            'feat_dynamic_real':data[data.bss==bss_id][covariates][:-prediction_length]} for bss_id in data.bss.drop_duplicates().iloc[train_indices]],
             freq=freq
         )
         # test dataset
         test_ds = ListDataset(
             [{'target': data[data.bss==bss_id].p.to_numpy(), 
             'start': '2015-01-01',
-            'feat_dynamic_real':data[data.bss==bss_id][covariates]} for bss_id in data.bss.drop_duplicates()[test_indices]],
+            'feat_dynamic_real':data[data.bss==bss_id][covariates]} for bss_id in data.bss.drop_duplicates().iloc[test_indices]],
             freq=freq
         )
         
@@ -113,7 +113,7 @@ for fold, (train_indices, test_indices) in enumerate(kf.split(indices)):
         tss = list(ts_it)
         
         evaluator = Evaluator(quantiles=[0.1, 0.5, 0.9])
-        agg_metrics, item_metrics = evaluator(iter(tss), iter(forecasts), num_series=len(train_indices))
+        agg_metrics, item_metrics = evaluator(iter(tss), iter(forecasts), num_series=len(test_indices))
         item_metrics.item_id = data.bss.drop_duplicates().reset_index(drop=True)
         
         item_metrics['model']=estimator.__class__.__name__
