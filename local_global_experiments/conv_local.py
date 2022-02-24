@@ -63,6 +63,8 @@ verbose = args.verbose
 
 all_data = pd.read_csv(dataset, delimiter=',', index_col=0, parse_dates=['time'])
 all_data.set_index('bss', drop=True, inplace=True)
+all_data = all_data[all_data.time<"2021-01-16"]
+
 sources = all_data.index.unique()
 
 columns = ['bss_code','model','rmse_train','rmse_test','rmsse_train','rmsse_test','learningtime', 'use_exo_rain', 'use_exo_evo'] + [f'h{i}' for i in range(1, 94)]
