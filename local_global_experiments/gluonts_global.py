@@ -9,6 +9,8 @@
 import numpy as np
 import pandas as pd
 import time
+import os
+from pathlib import Path
 
 from gluonts.dataset.common import ListDataset
 from gluonts.model.simple_feedforward import SimpleFeedForwardEstimator
@@ -20,7 +22,13 @@ from gluonts.evaluation import Evaluator
 print("load data")
 rep_data = "../data_collection"
 rep_results = "./"
+rep_models = "./models"
 datasetfile = 'dataset_nomissing_linear.csv'
+
+try:
+    os.mkdir(rep_models)
+except:
+    None
 
 data=pd.read_csv(rep_data+"/"+datasetfile, index_col=0)
 data = data[data.time<"2021-01-16"]
@@ -30,6 +38,7 @@ stations=pd.read_csv(rep_data+"/stations.csv", index_col=0)
 stations = pd.merge(stations, data.bss.drop_duplicates(), on="bss", how="right")[['bss','EtatEH', 'NatureEH', 'MilieuEH','ThemeEH', 'OrigineEH']]
 # replace NaN to keep the exact same number of time series (1195 remining otherwise)
 stations.replace({np.NaN:0}, inplace=True)
+stations.replace({'X':0}, inplace=True)
 
 #stations.set_index('bss', inplace=True)
 #stations.dropna(inplace=True) 
@@ -69,6 +78,7 @@ for covariates in [[]]:
               } for bss_id in data.bss.drop_duplicates()],
             freq=freq
         )
+        estimator_specname="_global_bdlisa_"+"_".join(covariates)
     else:
         # train dataset made of all the time series
         train_ds = ListDataset(
@@ -86,6 +96,7 @@ for covariates in [[]]:
               } for bss_id in data.bss.drop_duplicates()],
             freq=freq
         )
+        estimator_specname="_global_"+"_".join(covariates)
     
         
     
@@ -122,6 +133,13 @@ for covariates in [[]]:
     end = time.time()
     learning_time = end - start
     
+    #save model
+    estimator_name=estimator.__class__.__name__+estimator_specname
+    try:
+        os.mkdir(os.path.join(rep_models,estimator_name))
+    except:
+        None
+    predictor.serialize(Path(os.path.join(rep_models,estimator_name)))
     
     print("Forecast")
     #do forecast
@@ -152,9 +170,3 @@ for covariates in [[]]:
 
 metrics = pd.concat(metrics_list)
 metrics.to_csv(estimator.__class__.__name__+"_global.csv")
-
-from pathlib import Path
-predictor.serialize(Path(os.getcwd()))
-
-from gluonts.model.predictor import Predictor
-predictor_deserialized = Predictor.deserialize(Path(os.getcwd()))
