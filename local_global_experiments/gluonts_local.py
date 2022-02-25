@@ -106,7 +106,7 @@ for bss_id in data.bss.drop_duplicates():
         item_metrics['use_exo_rain']=('tp'in covariates)
         item_metrics['use_exo_evo']=('e'in covariates)
         item_metrics['rmse']=np.sqrt(item_metrics['MSE'])
-        TN=np.sum((dataset.p[1:-prediction_length].to_numpy()-dataset.p[:-prediction_length-1].to_numpy())**2)
+        TN=np.mean((dataset.p[1:-prediction_length].to_numpy()-dataset.p[:-prediction_length-1].to_numpy())**2)
         item_metrics['rmsse']=np.sqrt(item_metrics['MSE']/TN)
         metrics_list.append(item_metrics)
     
