@@ -28,7 +28,11 @@ data = data[data.time<"2021-01-16"]
 # stations pour récupérer le code LISA et avoir les données de la BDLisa
 stations=pd.read_csv(rep_data+"/stations.csv", index_col=0)
 stations = pd.merge(stations, data.bss.drop_duplicates(), on="bss", how="right")[['bss','EtatEH', 'NatureEH', 'MilieuEH','ThemeEH', 'OrigineEH']]
-stations.set_index('bss', inplace=True)
+# replace NaN to keep the exact same number of time series (1195 remining otherwise)
+stations.replace({np.NaN:0}, inplace=True)
+
+#stations.set_index('bss', inplace=True)
+#stations.dropna(inplace=True) 
 
 prediction_length=93
 freq='1D'
@@ -148,3 +152,9 @@ for covariates in [[]]:
 
 metrics = pd.concat(metrics_list)
 metrics.to_csv(estimator.__class__.__name__+"_global.csv")
+
+from pathlib import Path
+predictor.serialize(Path(os.getcwd()))
+
+from gluonts.model.predictor import Predictor
+predictor_deserialized = Predictor.deserialize(Path(os.getcwd()))
