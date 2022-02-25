@@ -9,6 +9,6 @@ dependencies:
   - seaborn
   - scikit-learn
   - numpy
-  - pip
-    - r requirements.txt
+  - pip:
+    - -r requirements.txt
 prefix: /Users/michael/opt/miniconda3/envs/defiegc2021

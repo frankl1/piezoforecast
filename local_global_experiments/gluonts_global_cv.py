@@ -131,7 +131,7 @@ for fold, (train_indices, test_indices) in enumerate(kf.split(indices)):
         metrics = None
         if os.path.isfile(fname):
             metrics = pd.read_csv(fname)
-            metrics = metrics.append(pd.DataFrame(metrics_list))
+            metrics = metrics.append(pd.DataFrame(item_metrics))
         else:
-            metrics = pd.DataFrame(metrics_list)
+            metrics = pd.DataFrame(item_metrics)
         metrics.to_csv(fname)
