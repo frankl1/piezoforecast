@@ -36,8 +36,8 @@ freq='1D'
 
 nb_series=len(data.bss.drop_duplicates())
 
-print('pre-compute TN')
-TN=[{'bss':bss_id,'TN':np.sum((data[data.bss==bss_id].iloc[1:-prediction_length].p.to_numpy()-data[data.bss==bss_id].iloc[:-prediction_length-1].p.to_numpy())**2)} for bss_id in data.bss.drop_duplicates()]
+print('Pre-compute TN')
+TN=[{'bss':bss_id,'TN':np.mean((data[data.bss==bss_id].iloc[1:-prediction_length].p.to_numpy()-data[data.bss==bss_id].iloc[:-prediction_length-1].p.to_numpy())**2)} for bss_id in data.bss.drop_duplicates()]
 TN=pd.DataFrame(TN)
 
 metrics_list=[]
