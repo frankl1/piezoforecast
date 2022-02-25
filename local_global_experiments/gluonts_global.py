@@ -6,12 +6,9 @@
 @date: 2/2022
 """
 
-import mxnet as mx
-from mxnet import gluon
 import numpy as np
 import pandas as pd
 import time
-import matplotlib.pyplot as plt
 
 from gluonts.dataset.common import ListDataset
 from gluonts.model.simple_feedforward import SimpleFeedForwardEstimator
@@ -28,36 +25,71 @@ datasetfile = 'dataset_nomissing_linear.csv'
 data=pd.read_csv(rep_data+"/"+datasetfile, index_col=0)
 data = data[data.time<"2021-01-16"]
 
+# stations pour récupérer le code LISA et avoir les données de la BDLisa
+stations=pd.read_csv(rep_data+"/stations.csv", index_col=0)
+stations = pd.merge(stations, data.bss.drop_duplicates(), on="bss", how="right")[['bss','EtatEH', 'NatureEH', 'MilieuEH','ThemeEH', 'OrigineEH']]
+# replace NaN to keep the exact same number of time series (1195 remining otherwise)
+stations.replace({np.NaN:0}, inplace=True)
+
+#stations.set_index('bss', inplace=True)
+#stations.dropna(inplace=True) 
+
 prediction_length=93
 freq='1D'
 
 nb_series=len(data.bss.drop_duplicates())
 
-print('pre-compute TN')
+print('Pre-compute TN')
 TN=[{'bss':bss_id,'TN':np.sum((data[data.bss==bss_id].iloc[1:-prediction_length].p.to_numpy()-data[data.bss==bss_id].iloc[:-prediction_length-1].p.to_numpy())**2)} for bss_id in data.bss.drop_duplicates()]
 TN=pd.DataFrame(TN)
 
+bdlisa=True
+
 metrics_list=[]
 #for covariates in [[] ,['tp'],['e'], ['tp','e']]:
-for covariates in [[],['tp'],['e'], ['tp','e']]:
+#for covariates in [[],['tp'],['e'], ['tp','e']]:
+for covariates in [[]]:
     print("prepare dataset with covariates: "+ ', '.join(covariates) +".")
-    # train dataset made of all the time series
-    train_ds = ListDataset(
-        [{'target': data[data.bss==bss_id].p[:-prediction_length].to_numpy(), 
-          'start': '2015-01-01', 
-          'feat_dynamic_real':data[data.bss==bss_id][covariates][:-prediction_length]} for bss_id in data.bss.drop_duplicates()],
-        freq=freq
-    )
-    # test dataset
-    test_ds = ListDataset(
-        [{'target': data[data.bss==bss_id].p.to_numpy(), 
-          'start': '2015-01-01',
-          'feat_dynamic_real':data[data.bss==bss_id][covariates]} for bss_id in data.bss.drop_duplicates()],
-        freq=freq
-    )
+    if bdlisa:
+        # train dataset made of all the time series
+        train_ds = ListDataset(
+            [{'target': data[data.bss==bss_id].p[:-prediction_length].to_numpy(), 
+              'start': '2015-01-01', 
+              'feat_dynamic_real':data[data.bss==bss_id][covariates][:-prediction_length],
+              'feat_static_cat': stations.loc[bss_id],
+              } for bss_id in data.bss.drop_duplicates()],
+            freq=freq
+        )
+        # test dataset
+        test_ds = ListDataset(
+            [{'target': data[data.bss==bss_id].p.to_numpy(), 
+              'start': '2015-01-01',
+              'feat_dynamic_real':data[data.bss==bss_id][covariates],
+              'feat_static_cat': stations.loc[bss_id]
+              } for bss_id in data.bss.drop_duplicates()],
+            freq=freq
+        )
+    else:
+        # train dataset made of all the time series
+        train_ds = ListDataset(
+            [{'target': data[data.bss==bss_id].p[:-prediction_length].to_numpy(), 
+              'start': '2015-01-01', 
+              'feat_dynamic_real':data[data.bss==bss_id][covariates][:-prediction_length]
+              } for bss_id in data.bss.drop_duplicates()],
+            freq=freq
+        )
+        # test dataset
+        test_ds = ListDataset(
+            [{'target': data[data.bss==bss_id].p.to_numpy(), 
+              'start': '2015-01-01',
+              'feat_dynamic_real':data[data.bss==bss_id][covariates]
+              } for bss_id in data.bss.drop_duplicates()],
+            freq=freq
+        )
     
+        
     
-    print("learn model")
+    print("Learn global model")
     """
     estimator = SimpleFeedForwardEstimator(
         num_hidden_dimensions=[10],
@@ -91,7 +123,7 @@ for covariates in [[],['tp'],['e'], ['tp','e']]:
     learning_time = end - start
     
     
-    print("forecast")
+    print("Forecast")
     #do forecast
     forecast_it, ts_it = make_evaluation_predictions(
         dataset=test_ds,  # test dataset
@@ -120,3 +152,9 @@ for covariates in [[],['tp'],['e'], ['tp','e']]:
 
 metrics = pd.concat(metrics_list)
 metrics.to_csv(estimator.__class__.__name__+"_global.csv")
+
+from pathlib import Path
+predictor.serialize(Path(os.getcwd()))
+
+from gluonts.model.predictor import Predictor
+predictor_deserialized = Predictor.deserialize(Path(os.getcwd()))

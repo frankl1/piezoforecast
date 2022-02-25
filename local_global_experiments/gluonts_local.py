@@ -6,11 +6,8 @@
 @date: 2/2022
 """
 
-import mxnet as mx
-from mxnet import gluon
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import time
 
 from gluonts.dataset.common import ListDataset
@@ -25,16 +22,21 @@ rep_results = "./"
 datasetfile = 'dataset_nomissing_linear.csv'
 
 data=pd.read_csv(rep_data+"/"+datasetfile, index_col=0)
-
+data = data[data.time<"2021-01-16"]
 
 prediction_length=93
 freq='1D'
 
 metrics_list=[]
+bss_idi=1
+bss_nb=1329
 for bss_id in data.bss.drop_duplicates():
+    print( f"******* Process {bss_id} ({bss_idi}/{bss_nb}) *****" )
+    bss_idi+=1
     dataset = data[data.bss==bss_id]
     
-    for covariates in [[] ,['tp'],['e'], ['tp','e']]:
+    #for covariates in [[] ,['tp'],['e'], ['tp','e']]:
+    for covariates in [[]]:
         # train dataset
         train_ds = ListDataset(
             [{
