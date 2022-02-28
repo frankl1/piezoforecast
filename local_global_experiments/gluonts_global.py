@@ -39,8 +39,8 @@ stations = pd.merge(stations, data.bss.drop_duplicates(), on="bss", how="right")
 # replace NaN to keep the exact same number of time series (1195 remining otherwise)
 stations.replace({np.NaN:0}, inplace=True)
 stations.replace({'X':0}, inplace=True)
+stations.set_index('bss', inplace=True)
 
-#stations.set_index('bss', inplace=True)
 #stations.dropna(inplace=True) 
 
 prediction_length=93
@@ -161,6 +161,7 @@ for covariates in [[]]:
     item_metrics['learningtime']=learning_time
     item_metrics['use_exo_rain']=('tp'in covariates)
     item_metrics['use_exo_evo']=('e'in covariates)
+    item_metrics['use_exo_lisa']=bdlisa
     item_metrics['rmse']=np.sqrt(item_metrics['MSE'])
     item_metrics=pd.merge(item_metrics, TN, left_on="item_id", right_on="bss").drop("bss",axis=1)
     item_metrics['rmsse']=np.sqrt(item_metrics['MSE']/item_metrics['TN'])

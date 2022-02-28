@@ -9,6 +9,7 @@
 import numpy as np
 import pandas as pd
 import time
+import logging
 
 from gluonts.dataset.common import ListDataset
 from gluonts.model.simple_feedforward import SimpleFeedForwardEstimator
@@ -16,6 +17,8 @@ from gluonts.model.deepar import DeepAREstimator
 from gluonts.mx import Trainer
 from gluonts.evaluation import make_evaluation_predictions
 from gluonts.evaluation import Evaluator
+
+logging.getLogger("mxnet").addFilter(lambda record: False)
 
 rep_data = "../data_collection"
 rep_results = "./"
