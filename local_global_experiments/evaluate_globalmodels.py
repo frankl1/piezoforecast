@@ -19,12 +19,29 @@ from gluonts.evaluation import Evaluator
 
 import matplotlib.pyplot as plt
 
+from itertools import islice
+def plot_forecasts(tss, forecasts, past_length, num_plots):
+    for target, forecast in islice(zip(tss, forecasts), num_plots):
+        ax = target[-past_length:].plot(figsize=(12, 5), linewidth=2)
+        forecast.plot(color='g')
+        plt.grid(which='both')
+        plt.legend(["observations", "median prediction", "90% confidence interval", "50% confidence interval"])
+        plt.show()
+        
 print("Load model")
 rep_models = "./models"
+'''
 model="DeepAREstimator_global_bdlisa_"
 predictor = Predictor.deserialize(Path(os.path.join(rep_models,model)))
 covariates=[]
 bdlisa=True
+'''
+model="DeepAREstimator_global_"
+predictor = Predictor.deserialize(Path(os.path.join(rep_models,model)))
+covariates=[]
+bdlisa=False
+
+
 #TODO: save these parameters in a pkl while saving the model
 
 print("load data")
@@ -46,7 +63,10 @@ stations.set_index("bss",inplace=True)
 prediction_length=93
 freq='1D'
 
-list_bss=['00068X0010/F295','11064X0013/ALISO','00103X0322/F']
+######################################
+
+#list_bss=['00068X0010/F295','11064X0013/ALISO','00103X0322/F']
+list_bss = list(np.random.choice(data.bss, 3))
 
 if bdlisa:
     test_ds = ListDataset(
@@ -87,14 +107,6 @@ item_metrics=pd.merge(item_metrics, TN, left_on="item_id", right_on="bss").drop(
 item_metrics['rmsse']=np.sqrt(item_metrics['MSE']/item_metrics['TN'])
 
 
-from itertools import islice
-def plot_forecasts(tss, forecasts, past_length, num_plots):
-    for target, forecast in islice(zip(tss, forecasts), num_plots):
-        ax = target[-past_length:].plot(figsize=(12, 5), linewidth=2)
-        forecast.plot(color='g')
-        plt.grid(which='both')
-        plt.legend(["observations", "median prediction", "90% confidence interval", "50% confidence interval"])
-        plt.show()
 
 plot_forecasts(tss, forecasts, past_length=150, num_plots=len(list_bss))
 
