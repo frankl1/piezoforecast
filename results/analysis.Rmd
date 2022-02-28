@@ -195,7 +195,7 @@ Then, we compare the results obtained with external validation vs internal valid
 The interesting result is that the model keep its accuracy in the use with external validation.
 But ... it is far from being competitive with the local `lm` model
 
-```{r "cmp local/global", echo=FALSE, message=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
+```{r "cmp external", echo=FALSE, message=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
 ggdata  = ddata %>% filter( use_exo_rain==FALSE &
                              use_exo_eto==FALSE) %>% 
   select( id_piezo, type, rmsse, rmse)
