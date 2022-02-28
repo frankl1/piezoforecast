@@ -135,7 +135,7 @@ with open(out_file, 'a+', buffering=1) as f:
             len_train = int(n * 0.7)
             len_val = int(n * 0.2)
 
-            train_df = df[:-label_width:]
+            train_df = df[:-label_width]
             test_df = df[-(label_width+input_width):]
 
             print('\tTrain shape:', train_df.shape)
@@ -168,15 +168,13 @@ with open(out_file, 'a+', buffering=1) as f:
             conv_model = tf.keras.Sequential([
                 tf.keras.layers.Conv1D(filters=256, kernel_size=7, activation='relu', padding='same'),
                 tf.keras.layers.Conv1D(filters=128, kernel_size=7, activation='relu', padding='same'),
-                tf.keras.layers.Conv1D(filters=64, kernel_size=5, activation='relu', padding='same'),
-                tf.keras.layers.Conv1D(filters=32, kernel_size=3, activation='relu', padding='same'),
-                tf.keras.layers.Conv1D(filters=16, kernel_size=3, activation='relu', padding='same'),
+                tf.keras.layers.Conv1D(filters=64, kernel_size=7, activation='relu', padding='same'),
                 tf.keras.layers.Flatten(),
-                tf.keras.layers.Dense(256, activation='relu'),
-                tf.keras.layers.Dense(32, activation='relu'),
+                tf.keras.layers.Dense(128, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.1)),
+                tf.keras.layers.Dense(32, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.1)),
                 tf.keras.layers.Dense(units=label_width),
                 tf.keras.layers.Reshape((label_width, -1))
-            ], name='conv_model')
+            ], name='conv_model')   
 
             try:
                 start_time = time.time()
