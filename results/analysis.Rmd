@@ -43,14 +43,14 @@ data_deepar = read_csv("global_DeepAR.csv", col_select=c('item_id','model','rmse
 data <- bind_rows(data,data_deepar)
 
 # Add Prophet results
-files= c( paste0(rep_results,'local_prophet.csv'), 
-          paste0(rep_results,'local_neuralprophet.csv'),
-          paste0(rep_results,'local_Conv.csv'))
-
-newdata <- files %>% map_df( ~ read_csv(.) ) %>% select(c('bss_code','model','rmse_test','rmsse_test','use_exo_evo', 'use_exo_rain'))%>%rename( rmse=rmse_test, rmsse=rmsse_test, id_piezo=bss_code, use_exo_eto=use_exo_evo )
-data <- bind_rows(data,newdata)
-
-rm(data_prophet,newdata)
+# files= c( paste0(rep_results,'local_prophet.csv'), 
+#           paste0(rep_results,'local_neuralprophet.csv'),
+#           paste0(rep_results,'local_Conv.csv'))
+# 
+# newdata <- files %>% map_df( ~ read_csv(.) ) %>% select(c('bss_code','model','rmse_test','rmsse_test','use_exo_evo', 'use_exo_rain'))%>%rename( rmse=rmse_test, rmsse=rmsse_test, id_piezo=bss_code, use_exo_eto=use_exo_evo )
+# data <- bind_rows(data,newdata)
+# 
+# rm(data_prophet,newdata)
 data
 ```
 
@@ -64,12 +64,12 @@ ggdata  = data %>% filter( use_exo_rain==FALSE &
                              use_exo_eto==FALSE) %>% 
   select( id_piezo, model, rmsse, rmse)
 
-# ggplot( ggdata) +
-#   geom_boxplot( aes(x=model, y=rmse) ) +
-#   theme_bw()+
-#   ylim(0,10) +
-#   labs(x = "Regresseur", y = "RMSE") +
-#   theme(legend.position = c(0.1, 0.85), axis.title.x = element_blank())
+ggplot( ggdata) +
+  geom_boxplot( aes(x=model, y=rmse) ) +
+  theme_bw()+
+  ylim(0,10) +
+  labs(x = "Regresseur", y = "RMSE") +
+  theme(legend.position = c(0.1, 0.85), axis.title.x = element_blank())
 
 ggplot( ggdata) +
   geom_boxplot( aes(x=model, y=rmsse) ) +
@@ -121,7 +121,7 @@ ggplot( ggdata) +
   theme_bw()+
   ylim(c(0,50)) +
   labs(x = "Regresseur", y = "RMSSE") +
-  ylim(0,5) +
+  ylim(0,10) +
   theme(legend.position = c(0.1, 0.85), axis.title.x = element_blank())
 
 
@@ -144,3 +144,29 @@ cmpmat<-df%>%select(-id_piezo)
 plotCD(-cmpmat, cex = 1)
 ```
 
+## Does the global model generalize well with respect to the piezometers?
+
+In this section, the question is whether the global model trained on a set of piezometers can be used to make accurate forecasting (for the same period) for piezometers out of the training set.
+
+We trained the model on 70\% of the piezometers and evaluate the forecast on the remaining 30\%.  
+We repeated 4 times this experiment (4-folds).
+
+```{r, message=FALSE, echo=FALSE, include=FALSE}
+data_deepar_cv = read_csv("DeepAREstimator_global_cv.csv", col_select=c('item_id','model','rmse','rmsse','use_exo_evo', 'use_exo_rain','fold'))%>%rename( id_piezo=item_id, use_exo_eto=use_exo_evo )
+data_deepar_cv['type']="global_cv"
+```
+
+```{r "cmp local/global", echo=FALSE, message=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
+ggdata  = data_deepar_cv %>% filter( use_exo_rain==FALSE &
+                             use_exo_eto==FALSE) %>% 
+  select( id_piezo, fold, rmsse, rmse)
+ggdata$fold = as.factor(ggdata$fold)
+
+ggplot( ggdata) +
+  geom_violin( aes(x=fold, y=rmsse) ) +
+  theme_bw()+
+  ylim(c(0,50)) +
+  labs(x = "Estimator", y = "RMSSE") +
+  #ylim(0,10) +
+  theme(legend.position = c(0.1, 0.85), axis.title.x = element_blank())
+```
