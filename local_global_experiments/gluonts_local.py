@@ -38,8 +38,7 @@ for bss_id in data.bss.drop_duplicates():
     bss_idi+=1
     dataset = data[data.bss==bss_id]
     
-    #for covariates in [[] ,['tp'],['e'], ['tp','e']]:
-    for covariates in [[]]:
+    for covariates in [['tp','e'],['tp'],['e'],[]]:
         # train dataset
         train_ds = ListDataset(
             [{
