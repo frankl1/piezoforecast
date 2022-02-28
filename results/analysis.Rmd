@@ -1,7 +1,7 @@
 ---
 title: "Analyse résultats"
 author: "Thomas Guyet and Michael Mbouopda"
-date: "21/02/2022"
+date: "28/02/2022"
 output: pdf_document
 ---
 
@@ -20,7 +20,7 @@ library(scmamp)
 
 
 # Comparison of Local models
-In this section, we use only the data of local models
+In this section, we use only the data of local models.
 
 ```{r data load, message=FALSE, echo=FALSE, include=FALSE}
 
@@ -39,24 +39,31 @@ data <- data %>% filter( approx_exo==FALSE ) %>% select(-c('r','mse','type','use
 data_deepar = read_csv("local_DeepAR.csv", col_select=c('item_id','model','rmse','rmsse','use_exo_evo', 'use_exo_rain'))%>%rename( id_piezo=item_id, use_exo_eto=use_exo_evo )
 data <- bind_rows(data,data_deepar)
 
-data_deepar = read_csv("global_DeepAR.csv", col_select=c('item_id','model','rmse','rmsse','use_exo_evo', 'use_exo_rain'))%>%rename( id_piezo=item_id, use_exo_eto=use_exo_evo )
-data <- bind_rows(data,data_deepar)
-
 # Add Prophet results
-# files= c( paste0(rep_results,'local_prophet.csv'), 
-#           paste0(rep_results,'local_neuralprophet.csv'),
-#           paste0(rep_results,'local_Conv.csv'))
-# 
-# newdata <- files %>% map_df( ~ read_csv(.) ) %>% select(c('bss_code','model','rmse_test','rmsse_test','use_exo_evo', 'use_exo_rain'))%>%rename( rmse=rmse_test, rmsse=rmsse_test, id_piezo=bss_code, use_exo_eto=use_exo_evo )
-# data <- bind_rows(data,newdata)
-# 
-# rm(data_prophet,newdata)
+files= c( paste0(rep_results,'local_prophet.csv'), 
+         paste0(rep_results,'local_neuralprophet.csv'),
+         paste0(rep_results,'local_Conv.csv'))
+
+newdata <- files %>% map_df( ~ read_csv(.) ) %>% select(c('bss_code','model','rmse_test','rmsse_test','use_exo_evo', 'use_exo_rain'))%>%rename( rmse=rmse_test, rmsse=rmsse_test, id_piezo=bss_code, use_exo_eto=use_exo_evo )
+data <- bind_rows(data,newdata)
+
+rm(data_deepar,newdata)
 data
 ```
 
+We also filter out results of piedometers which have not been evaluated with the complete set of methods.
+
+```{r "filter out uncommon data", message=FALSE, echo=FALSE, include=FALSE}
+
+liste_piezos= read_tsv("piezos_communs.csv")
+data = merge(data,liste_piezos, by="id_piezo")
+data = data%>%drop_na()
+```
+
+
 ## Comparison of RMSSE without exogenous variables
 In this section we compare the different forecasting methods while not using exogenous data ...
-We use RMSSE measurements. 
+We use RMSE and RMSSE measurements. 
 
 
 ```{r "cmp sans données exogènes", echo=FALSE, message=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
@@ -80,9 +87,10 @@ ggplot( ggdata) +
 #ggsave("expe_cmp_ml.pdf", width = 7, height = 4)
 ```
 
-We can notice that the DeepAR approach outperforms the other approaches based on various auto-regressive functions and Prophet.
+The linear models remains the best one. The `Random Forest` is close to the other approaches.
+Event deep approaches such as `DeepAR`/`Conv`/`Prophet` does not outperform this simple approach.
 
-We now compute the Critical Difference Diagram using the same comparison setting. The Figure below confirms the results: DeepAR significantly outperforms the other approaches.
+We now compute the Critical Difference Diagram using the same comparison setting. The Figure below confirms the results: `lm` and `rf` significantly outperforms the other approaches.
 
 ```{r, message=FALSE, echo=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/", fig.width=15}
 
@@ -101,14 +109,22 @@ plotCD(-cmpmat, cex = 1)
 
 
 # Comparaison Local/Global for DeepAR
+
+In this section we compare the results between the local and the global approaches of `DeepAR`.
+Two global approaches have been run: with and without the use of `BDLisa` (static exogeneous variables).
+
+We compare the boxplots and draw a critical differences diagram.
+
 ```{r, message=FALSE, echo=FALSE, include=FALSE}
 data_deepar = read_csv("local_DeepAR.csv", col_select=c('item_id','model','rmse','rmsse','use_exo_evo', 'use_exo_rain'))%>%rename( id_piezo=item_id, use_exo_eto=use_exo_evo )
 data_deepar['type']="local"
 data <- data_deepar
 
-data_deepar = read_csv("global_DeepAR.csv", col_select=c('item_id','model','rmse','rmsse','use_exo_evo', 'use_exo_rain'))%>%rename( id_piezo=item_id, use_exo_eto=use_exo_evo )
+data_deepar = read_csv("global_DeepAR.csv", col_select=c('item_id','model','rmse','rmsse','use_exo_evo', 'use_exo_rain', 'use_exo_lisa'))%>%rename( id_piezo=item_id, use_exo_eto=use_exo_evo )
 data_deepar['type']="global"
 data <- bind_rows(data,data_deepar)
+
+data=data%>%mutate( type = replace(type, use_exo_lisa==TRUE,"global_lisa"))
 ```
 
 ```{r "cmp local/global", echo=FALSE, message=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
@@ -123,7 +139,6 @@ ggplot( ggdata) +
   labs(x = "Regresseur", y = "RMSSE") +
   ylim(0,10) +
   theme(legend.position = c(0.1, 0.85), axis.title.x = element_blank())
-
 
 ggplot( ggdata) +
   geom_boxplot( aes(x=type, y=rmsse) ) +
@@ -143,27 +158,50 @@ df = ggdata %>% select(id_piezo, type, rmsse)%>%group_by(id_piezo, type)%>%
 cmpmat<-df%>%select(-id_piezo)
 plotCD(-cmpmat, cex = 1)
 ```
+The results show that the local approach is significantly more accurate than the global approaches and that the use of the `BD Lisa` improves the accuracy of the `DeepAR` forecaster.
 
 ## Does the global model generalize well with respect to the piezometers?
 
 In this section, the question is whether the global model trained on a set of piezometers can be used to make accurate forecasting (for the same period) for piezometers out of the training set.
 
-We trained the model on 70\% of the piezometers and evaluate the forecast on the remaining 30\%.  
-We repeated 4 times this experiment (4-folds).
+Then, we conduct an external-validation experiment: We trained the model on 70\% of the piezometers and evaluate the forecast on the remaining 30\%.We repeated 4 times this experiment (4-folds).
 
 ```{r, message=FALSE, echo=FALSE, include=FALSE}
 data_deepar_cv = read_csv("DeepAREstimator_global_cv.csv", col_select=c('item_id','model','rmse','rmsse','use_exo_evo', 'use_exo_rain','fold'))%>%rename( id_piezo=item_id, use_exo_eto=use_exo_evo )
 data_deepar_cv['type']="global_cv"
+
+ddata <- bind_rows(data_deepar_cv,data)
+
 ```
 
-```{r "cmp local/global", echo=FALSE, message=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
+Let us start by having a look at the stability of the results among the different folds. We draw a boxplot for each of them to be sure that it is not significantly different from each others. And it seems to be actually the case.
+
+```{r "cmp folds", echo=FALSE, message=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
 ggdata  = data_deepar_cv %>% filter( use_exo_rain==FALSE &
                              use_exo_eto==FALSE) %>% 
   select( id_piezo, fold, rmsse, rmse)
 ggdata$fold = as.factor(ggdata$fold)
 
 ggplot( ggdata) +
-  geom_violin( aes(x=fold, y=rmsse) ) +
+  geom_boxplot( aes(x=fold, y=rmsse) ) +
+  theme_bw()+
+  ylim(c(0,50)) +
+  labs(x = "Estimator", y = "RMSSE") +
+  #ylim(0,10) +
+  theme(legend.position = c(0.1, 0.85), axis.title.x = element_blank())
+```
+
+Then, we compare the results obtained with external validation vs internal validation. 
+The interesting result is that the model keep its accuracy in the use with external validation.
+But ... it is far from being competitive with the local `lm` model
+
+```{r "cmp local/global", echo=FALSE, message=FALSE, prompt=FALSE, warning=FALSE, fig.path="figures/"}
+ggdata  = ddata %>% filter( use_exo_rain==FALSE &
+                             use_exo_eto==FALSE) %>% 
+  select( id_piezo, type, rmsse, rmse)
+
+ggplot( ggdata) +
+  geom_boxplot( aes(x=type, y=rmsse) ) +
   theme_bw()+
   ylim(c(0,50)) +
   labs(x = "Estimator", y = "RMSSE") +
