@@ -78,7 +78,7 @@ def weightedAveragePercentageError(y_true, y_pred):
 def compile_and_fit(model, window, patience=2, epochs=20, verbose=0):
     #hmsd = np.mean(window.train_df.niveau_nappe_eau.diff()[1:]**2)
     
-    early_stopping = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=patience, mode='min')
+    early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience, mode='min')
     
     checkpoint_file = f'Checkpoints/{model.name}/best_weights'
     
@@ -93,7 +93,7 @@ def compile_and_fit(model, window, patience=2, epochs=20, verbose=0):
     
     model.compile(loss=tf.keras.losses.MeanSquaredError(), optimizer=tf.keras.optimizers.Adam())
     
-    history = model.fit(window.train, epochs=epochs, callbacks=[early_stopping, checkpoint])
+    history = model.fit(window.train, validation_data=window.val, epochs=epochs, callbacks=[early_stopping, checkpoint])
     
     model.load_weights(checkpoint_file)
     

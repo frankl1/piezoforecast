@@ -132,13 +132,17 @@ with open(out_file, 'a+', buffering=1) as f:
 
             n = df.shape[0]
 
-            len_train = int(n * 0.7)
-            len_val = int(n * 0.2)
+            n_train = n - label_width - input_width # keep one sample for test
+            len_train = int(n_train * 0.8) # 80% for training and 20% for validation
+            #len_val = int(n_train * 0.2)
 
-            train_df = df[:-label_width]
+            train_df = df[:len_train]
+            val_df = df[len_train: n_train]
+            
             test_df = df[-(label_width+input_width):]
 
             print('\tTrain shape:', train_df.shape)
+            print('\Val shape:', val_df.shape)
             print('\tTest shape:', test_df.shape)
             print('\tNumber of observations:', n) 
             print('\tFeatures:', all_features, 'number:', n_features)
@@ -153,6 +157,7 @@ with open(out_file, 'a+', buffering=1) as f:
             train_std = train_df.std()
 
             train_df = (train_df - train_mean) / train_std
+            val_df = (val_df - train_mean) / train_std
             test_df = (test_df - train_mean) / train_std
 
             # ### Data windowing
@@ -161,7 +166,7 @@ with open(out_file, 'a+', buffering=1) as f:
                                     label_width=label_width, 
                                     shift=shift,
                                     batch_size=batch_size,
-                                    train_df=train_df, val_df=None, test_df=test_df, label_columns=['p'])
+                                    train_df=train_df, val_df=val_df, test_df=test_df, label_columns=['p'])
 
             # ## Model 
 
@@ -181,7 +186,7 @@ with open(out_file, 'a+', buffering=1) as f:
                 history = compile_and_fit(conv_model, window, patience=patience, epochs=MAX_EPOCHS, verbose=verbose)
                 learning_time = time.time() - start_time
 
-                mse_train = conv_model.evaluate(window.train, verbose=verbose)
+                mse_train = conv_model.evaluate(window.val, verbose=verbose)
                 mse_test = conv_model.evaluate(window.test, verbose=verbose)
 
                 msse_train = mse_train / scaled_factor
