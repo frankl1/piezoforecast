@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import time
 import logging
+import os
 
 from gluonts.dataset.common import ListDataset
 from gluonts.model.simple_feedforward import SimpleFeedForwardEstimator
@@ -20,7 +21,7 @@ from gluonts.evaluation import Evaluator
 
 logging.getLogger("mxnet").addFilter(lambda record: False)
 
-rep_data = "../data_collection"
+rep_data = "./data_collection"
 rep_results = "./"
 datasetfile = 'dataset_nomissing_linear.csv'
 
@@ -33,6 +34,14 @@ freq='1D'
 metrics_list=[]
 bss_idi=1
 bss_nb=1329
+
+result_file = 'DeepAREstimator_local.csv'
+
+result_df = pd.DataFrame()
+
+if os.path.isfile(result_file):
+    result_df = pd.read_csv(result_file)
+
 for bss_id in data.bss.drop_duplicates():
     print( f"******* Process {bss_id} ({bss_idi}/{bss_nb}) *****" )
     bss_idi+=1
@@ -40,6 +49,21 @@ for bss_id in data.bss.drop_duplicates():
     
     for covariates in [['tp','e'],['tp'],['e'],[]]:
         # train dataset
+        cond = result_df.item_id==bss_id
+        if cond.any():
+            if 'tp' in covariates:
+                cond &= (result_df.use_exo_rain == True)
+            else:
+                cond &= (result_df.use_exo_rain == False)
+                
+            if 'e' in covariates:
+                cond &= (result_df.use_exo_evo == True)
+            else:
+                cond &= (result_df.use_exo_evo == False)
+            
+        if cond.any():
+            continue
+            
         train_ds = ListDataset(
             [{
                     'target': dataset.p[:-prediction_length].to_numpy(), 
@@ -110,9 +134,10 @@ for bss_id in data.bss.drop_duplicates():
         item_metrics['rmse']=np.sqrt(item_metrics['MSE'])
         TN=np.mean((dataset.p[1:-prediction_length].to_numpy()-dataset.p[:-prediction_length-1].to_numpy())**2)
         item_metrics['rmsse']=np.sqrt(item_metrics['MSE']/TN)
-        metrics_list.append(item_metrics)
-    
-        pd.concat(metrics_list).to_csv(estimator.__class__.__name__+"_local.csv.tmp")
+        # metrics_list.append(item_metrics)
 
-metrics = pd.concat(metrics_list)
-metrics.to_csv(estimator.__class__.__name__+"_local.csv")
+        result_df = pd.concat([result_df, item_metrics])
+        result_df.to_csv(result_file)
+
+# metrics = pd.concat(metrics_list)
+# pd.concat([result_df, metrics]).to_csv(estimator.__class__.__name__+"_local.csv")
