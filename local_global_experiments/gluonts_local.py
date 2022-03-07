@@ -20,7 +20,7 @@ from gluonts.evaluation import Evaluator
 
 logging.getLogger("mxnet").addFilter(lambda record: False)
 
-rep_data = "../data_collection"
+rep_data = "./data_collection"
 rep_results = "./"
 datasetfile = 'dataset_nomissing_linear.csv'
 
