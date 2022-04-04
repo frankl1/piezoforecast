@@ -20,7 +20,7 @@ from gluonts.evaluation import make_evaluation_predictions
 from gluonts.evaluation import Evaluator
 
 print("load data")
-rep_data = "../data_collection"
+rep_data = "./data_collection"
 rep_results = "./"
 rep_models = "./models"
 datasetfile = 'dataset_nomissing_linear.csv'
@@ -55,9 +55,8 @@ TN=pd.DataFrame(TN)
 bdlisa=False
 
 metrics_list=[]
-#for covariates in [[] ,['tp'],['e'], ['tp','e']]:
-#for covariates in [[],['tp'],['e'], ['tp','e']]:
-for covariates in [[]]:
+for covariates in [[],['tp'],['e'], ['tp','e']]:
+#for covariates in [[]]:
     print("prepare dataset with covariates: "+ ', '.join(covariates) +".")
     if bdlisa:
         # train dataset made of all the time series
