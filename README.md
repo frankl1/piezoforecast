@@ -14,7 +14,8 @@ There are `conda` and `pip` dependencies respectively listed in the files `envir
 `conda env create -f=environment.yml`
 
 ## Some results
-![](results/Images/some-forecasts.pdf)
+- [Some forecasts](results/Images/some-forecasts.pdf)
+- [RMSSE](results/Images/cd-all-best.pdf)
 
 
 ## Citing this work
