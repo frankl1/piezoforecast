@@ -16,6 +16,7 @@ There are `conda` and `pip` dependencies respectively listed in the files `envir
 ## Some results
 - [Some forecasts with NeuralProphet](results/Images/some-forecasts.pdf)
 - [RMSSE](results/Images/cd-all-best.pdf)
+- [Detailed results in CSV](results/all-performance.csv)
 
 
 ## Citing this work
