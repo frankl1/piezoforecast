@@ -3,10 +3,12 @@
 This repository contains the source code and the results of our work on comparing global vs local forecasting method for groundwater level prediction.
 
 ## Folders description
-- `dataset_collection`: describes how the data is collected and provides helping scripts for downloading the data.
+- `dataset_collection`: describes how the data is collected and provides helping scripts for downloading the raw data.
 - `local_global_experiments`: Contains scripts for running the models on the datasets.
 - `portfolio_experiments`: Contains a Jupyter notebook for visualising the datasets.
 - `results`: Contains the result files and a Jupyter notebook for visualising the results in a human-friendly way.
+
+[Download the the formatted dataset](https://zenodo.org/record/7193812#.Y01Et-xByrc)
 
 
 ## Dependencies
